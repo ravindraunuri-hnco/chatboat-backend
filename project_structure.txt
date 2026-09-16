@@ -1,0 +1,151 @@
+Folder PATH listing
+Volume serial number is B290-2183
+C:.
+³   .editorconfig
+³   .env.example
+³   .gitattributes
+³   .gitignore
+³   .npmrc
+³   artisan
+³   composer.json
+³   composer.lock
+³   package.json
+³   phpunit.xml
+³   project_structure.txt
+³   README.md
+³   test.http
+³   vite.config.js
+³   
+ÃÄÄÄapp
+³   ÃÄÄÄHttp
+³   ³   ÀÄÄÄControllers
+³   ³       ³   Controller.php
+³   ³       ³   
+³   ³       ÀÄÄÄApi
+³   ³               AuthController.php
+³   ³               CategoryController.php
+³   ³               MarginController.php
+³   ³               PermissionController.php
+³   ³               ProductController.php
+³   ³               RoleController.php
+³   ³               UserController.php
+³   ³               
+³   ÃÄÄÄModels
+³   ³       Category.php
+³   ³       Margin.php
+³   ³       Permission.php
+³   ³       Product.php
+³   ³       Role.php
+³   ³       User.php
+³   ³       
+³   ÃÄÄÄPolicies
+³   ³       CategoryPolicy.php
+³   ³       MarginPolicy.php
+³   ³       ProductPolicy.php
+³   ³       
+³   ÀÄÄÄProviders
+³           AppServiceProvider.php
+³           
+ÃÄÄÄbootstrap
+³   ³   app.php
+³   ³   providers.php
+³   ³   
+³   ÀÄÄÄcache
+³           .gitignore
+³           
+ÃÄÄÄconfig
+³       app.php
+³       auth.php
+³       cache.php
+³       database.php
+³       filesystems.php
+³       logging.php
+³       mail.php
+³       queue.php
+³       sanctum.php
+³       services.php
+³       session.php
+³       
+ÃÄÄÄdatabase
+³   ³   .gitignore
+³   ³   
+³   ÃÄÄÄfactories
+³   ³       UserFactory.php
+³   ³       
+³   ÃÄÄÄmigrations
+³   ³       0001_01_01_000000_create_users_table.php
+³   ³       0001_01_01_000001_create_cache_table.php
+³   ³       0001_01_01_000002_create_jobs_table.php
+³   ³       2026_06_13_051325_create_personal_access_tokens_table.php
+³   ³       2026_06_13_051333_create_roles_table.php
+³   ³       2026_06_13_051334_create_permissions_table.php
+³   ³       2026_06_13_051335_create_categories_table.php
+³   ³       2026_06_13_051336_create_products_table.php
+³   ³       2026_06_13_051337_create_margins_table.php
+³   ³       2026_06_13_051338_create_permission_role_table.php
+³   ³       2026_06_13_093411_add_role_foreign_key_to_users_table.php
+³   ³       
+³   ÀÄÄÄseeders
+³           DatabaseSeeder.php
+³           
+ÃÄÄÄpublic
+³       .htaccess
+³       favicon.ico
+³       index.php
+³       robots.txt
+³       
+ÃÄÄÄresources
+³   ÃÄÄÄcss
+³   ³       app.css
+³   ³       
+³   ÃÄÄÄjs
+³   ³       app.js
+³   ³       
+³   ÀÄÄÄviews
+³           welcome.blade.php
+³           
+ÃÄÄÄroutes
+³       api.php
+³       console.php
+³       web.php
+³       
+ÃÄÄÄstorage
+³   ÃÄÄÄapp
+³   ³   ³   .gitignore
+³   ³   ³   
+³   ³   ÃÄÄÄprivate
+³   ³   ³       .gitignore
+³   ³   ³       
+³   ³   ÀÄÄÄpublic
+³   ³           .gitignore
+³   ³           
+³   ÃÄÄÄframework
+³   ³   ³   .gitignore
+³   ³   ³   
+³   ³   ÃÄÄÄcache
+³   ³   ³   ³   .gitignore
+³   ³   ³   ³   
+³   ³   ³   ÀÄÄÄdata
+³   ³   ³           .gitignore
+³   ³   ³           
+³   ³   ÃÄÄÄsessions
+³   ³   ³       .gitignore
+³   ³   ³       
+³   ³   ÃÄÄÄtesting
+³   ³   ³       .gitignore
+³   ³   ³       
+³   ³   ÀÄÄÄviews
+³   ³           .gitignore
+³   ³           
+³   ÀÄÄÄlogs
+³           .gitignore
+³           
+ÀÄÄÄtests
+    ³   TestCase.php
+    ³   
+    ÃÄÄÄFeature
+    ³       ExampleTest.php
+    ³       
+    ÀÄÄÄUnit
+            ExampleTest.php
+            

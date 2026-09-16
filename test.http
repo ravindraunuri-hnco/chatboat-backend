@@ -1,0 +1,144 @@
+@baseUrl = http://127.0.0.1:8000/api
+
+# ====================================================
+# 1. AUTHENTICATION (SUPER ADMIN & ADMIN LOGIN)
+# ====================================================
+
+### Login as Super Admin
+# @name superAdminLogin
+POST {{baseUrl}}/login
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "superadmin@example.com", 
+    "password": "password"
+}
+
+### Save Super Admin Token Automatically
+@superToken = {{superAdminLogin.response.body.data.token}}
+
+
+### Login as Admin
+# @name adminLogin
+POST {{baseUrl}}/login
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "admin@example.com", 
+    "password": "password"
+}
+
+### Save Admin Token Automatically
+@adminToken = {{adminLogin.response.body.data.token}}
+
+
+# ====================================================
+# 2. CREATE DATA (ONLY SUPER ADMIN CAN DO THIS)
+# ====================================================
+
+### Super Admin Creates a Category
+# @name createCategory
+POST {{baseUrl}}/product-categories
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{superToken}}
+
+{
+    "name": "Ayurvedic Powders",
+    "description": "High quality organic ayurvedic powders",
+    "margin_percentage": 25
+}
+
+### Save Category ID Automatically
+@categoryId = {{createCategory.response.body.data.id}}
+
+
+### Super Admin Creates a Product inside the above Category
+# @name createProduct
+POST {{baseUrl}}/products
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{superToken}}
+
+{
+    "category_id": {{categoryId}},
+    "name": "Ashwagandha Premium Powder",
+    "price": 100,
+    "yield_cost": 80,
+    "processing_cost": 10,
+    "margin_percentage": 25,
+    "description": "Premium quality stress relief powder"
+}
+
+### Save Product ID Automatically
+@productId = {{createProduct.response.body.data.id}}
+
+
+# ====================================================
+# 3. TEST ADMIN PERMISSIONS (EDIT ALLOWED, DELETE/ADD BLOCKED)
+# ====================================================
+
+### Admin views the products list (Should Succeed - 200 OK)
+GET {{baseUrl}}/products
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+
+### Admin tries to CREATE a new product (Should Fail - 403 Forbidden)
+POST {{baseUrl}}/products
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "category_id": {{categoryId}},
+    "name": "Brahmi Powder",
+    "price": 120,
+    "yield_cost": 90
+}
+
+
+### Admin UPDATES the existing product (Should Succeed - 200 OK)
+PUT {{baseUrl}}/products/{{productId}}
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "category_id": {{categoryId}},
+    "name": "Ashwagandha Premium Powder (Edited by Admin)",
+    "price": 115,
+    "yield_cost": 85,
+    "processing_cost": 12,
+    "description": "Admin successfully updated the pricing"
+}
+
+
+### Admin tries to DELETE the product (Should Fail - 403 Forbidden)
+DELETE {{baseUrl}}/products/{{productId}}
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+
+### Admin tries to DELETE the category (Should Fail - 403 Forbidden)
+DELETE {{baseUrl}}/product-categories/{{categoryId}}
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+
+# ====================================================
+# 4. CLEANUP (SUPER ADMIN DELETES EVERYTHING)
+# ====================================================
+
+### Super Admin DELETES the Product (Should Succeed - 200 OK)
+DELETE {{baseUrl}}/products/{{productId}}
+Accept: application/json
+Authorization: Bearer {{superToken}}
+
+
+### Super Admin DELETES the Category (Should Succeed - 200 OK)
+DELETE {{baseUrl}}/product-categories/{{categoryId}}
+Accept: application/json
+Authorization: Bearer {{superToken}}
