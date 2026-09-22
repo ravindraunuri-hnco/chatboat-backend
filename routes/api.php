@@ -10,8 +10,8 @@ use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\RolePermissionController;
-// 🔥 CHATBOT CONTROLLER IMPORT KIYA HAI
 use App\Http\Controllers\Api\ChatbotController;
+use App\Http\Controllers\Api\ExchangeRateController; // 🔥 Controller import kiya
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/login', function () {
@@ -64,6 +64,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('chat-users', [ChatbotController::class, 'getAdminChatUsers']);
     Route::put('chat-users/{id}', [ChatbotController::class, 'updateAdminChatUser']);
     Route::delete('chat-users/{id}', [ChatbotController::class, 'deleteAdminChatUser']);
+
+    /*
+    |----------------------
+    | EXCHANGE RATE (SUPER ADMIN ONLY)
+    |----------------------
+    */
+    // 🔥 Naye routes add kiye Exchange Rate ke liye
+    Route::get('exchange-rate', [ExchangeRateController::class, 'show']);
+    Route::put('exchange-rate', [ExchangeRateController::class, 'update']);
 
     /*
     |----------------------
