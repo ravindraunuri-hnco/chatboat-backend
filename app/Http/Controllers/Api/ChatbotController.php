@@ -7,9 +7,10 @@ use App\Models\ChatUser;
 use App\Models\ChatHistory;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\ExchangeRate; // 🔥 Yahan ExchangeRate model import kiya hai
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Cache; // 🔥 Sirf Cache import kiya hai
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class ChatbotController extends Controller
@@ -102,13 +103,13 @@ class ChatbotController extends Controller
     }
 
     // ===================================
-    // FAST CACHE CURRENCY READER
+    // MANUAL CURRENCY READER (From DB)
     // ===================================
     private function getUsdExchangeRate()
     {
-        // ⚡ MICROSECOND READ: Direct RAM se rate layega. 
-        // Default 84.00 manega agar pehli baar chal raha hai.
-        return Cache::get('usd_to_inr_rate', 84.00); 
+        // 🔥 Cache hata kar ab direct Professional ExchangeRate Table se rate uthayega
+        $exchange = ExchangeRate::where('currency_code', 'USD')->first();
+        return $exchange ? (float) $exchange->rate : 84.00; 
     }
 
     // ===================================
