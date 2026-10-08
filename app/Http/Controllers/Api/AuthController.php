@@ -51,6 +51,11 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
+        // Chatbot users ke token bhi Sanctum token hain — unko admin data nahi milna chahiye
+        if (!$request->user() instanceof User) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
         // 🔥 FIX 1 (Same yahan bhi eagerly loading theek ki hai)
         $user = User::with(['role', 'role.permissions'])->find($request->user()->id);
         

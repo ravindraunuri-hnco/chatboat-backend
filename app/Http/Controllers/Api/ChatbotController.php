@@ -118,10 +118,13 @@ class ChatbotController extends Controller
     private function calculateFinalPrice($product, $category, $user = null)
     {
         try {
-            $baseCost = $product->rm_cost + $product->grinding_cost;
-            if ($product->yield_percentage <= 0) return 0;
+            // Grinding cost aur yield ab category se aate hain (product se nahi). Grinding khali = 0.
+            $grindingCost = $category ? (float) $category->grinding_cost : 0;
+            $baseCost = (float) $product->rm_cost + $grindingCost;
+            $yieldPct = $category ? (float) $category->yield_percentage : 0;
+            if ($yieldPct <= 0) return 0;
 
-            $finalCost = $baseCost / ($product->yield_percentage / 100);
+            $finalCost = $baseCost / ($yieldPct / 100);
             
             // 1. Normal Sales Price
             $marginPct = $category ? ($category->margin_percentage ?? 0) : 0;
@@ -150,8 +153,10 @@ class ChatbotController extends Controller
     private function getDetailedCalculation($product, $category, $user = null)
     {
         try {
-            $baseCost = $product->rm_cost + $product->grinding_cost;
-            $yieldPct = $product->yield_percentage;
+            // Grinding cost aur yield ab category se aate hain (product se nahi). Grinding khali = 0.
+            $grindingCost = $category ? (float) $category->grinding_cost : 0;
+            $baseCost = (float) $product->rm_cost + $grindingCost;
+            $yieldPct = $category ? (float) $category->yield_percentage : 0;
             $finalCost = $yieldPct > 0 ? $baseCost / ($yieldPct / 100) : 0;
             
             $marginPct = $category ? ($category->margin_percentage ?? 0) : 0;
@@ -181,8 +186,8 @@ class ChatbotController extends Controller
             return [
                 "product_name" => $product->name,
                 "category_name" => $category->name ?? 'None',
-                "rm_cost" => round($product->rm_cost, 2),
-                "grinding_cost" => round($product->grinding_cost, 2),
+                "rm_cost" => round((float) $product->rm_cost, 2),
+                "grinding_cost" => round($grindingCost, 2),
                 "yield_percentage" => round($yieldPct, 2),
                 "margin_percentage" => round($marginPct, 2),
                 "base_cost" => round($baseCost, 2),
@@ -217,7 +222,7 @@ class ChatbotController extends Controller
             ChatHistory::create([
                 'user_id' => $user->id,
                 'session_id' => $sessionId,
-                'message' => $request->message ?? '',
+                'message' => mb_substr((string) ($request->message ?? ''), 0, 500),
                 'role' => 'user',
                 'response' => json_encode($responsePayload),
                 'created_at' => now(),
@@ -276,7 +281,7 @@ class ChatbotController extends Controller
         ChatHistory::create([
             'user_id' => $user->id,
             'session_id' => $sessionId,
-            'message' => $request->message ?? '',
+            'message' => mb_substr((string) ($request->message ?? ''), 0, 500),
             'role' => 'user',
             'response' => json_encode($responsePayload),
             'created_at' => now(),

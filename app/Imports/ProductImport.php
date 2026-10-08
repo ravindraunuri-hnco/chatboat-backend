@@ -33,9 +33,9 @@ class ProductImport implements ToCollection, WithHeadingRow
             // Purchase Price / RM Cost (Required)
             $rmCost = $row['rm_cost'] ?? null;
 
-            if ($rmCost === null || $rmCost === '' || !is_numeric($rmCost) || (float)$rmCost < 0) {
+            if ($rmCost === null || $rmCost === '' || !is_numeric($rmCost) || (float)$rmCost < 1) {
                 $this->results['errors'][] =
-                    "Row {$rowNum}: rm_cost required/invalid for '{$productName}'";
+                    "Row {$rowNum}: rm_cost required (number, minimum 1) for '{$productName}'";
                 continue;
             }
 
@@ -59,18 +59,7 @@ class ProductImport implements ToCollection, WithHeadingRow
             }
 
             // Optional Fields
-            $grindingCost = null;
-
-            if (isset($row['grinding_cost']) && is_numeric($row['grinding_cost'])) {
-                $grindingCost = (float)$row['grinding_cost'];
-            }
-
-            $yieldPercentage = null;
-
-            if (isset($row['yield_percentage']) && is_numeric($row['yield_percentage'])) {
-                $yieldPercentage = (float)$row['yield_percentage'];
-            }
-
+            // yield_percentage aur grinding_cost ab category level pe hain (categories table)
             $keywords = trim($row['keywords'] ?? '') ?: null;
 
             $description = trim($row['description'] ?? '') ?: null;
@@ -84,8 +73,6 @@ class ProductImport implements ToCollection, WithHeadingRow
                 [
                     'category_id'       => $categoryId,
                     'rm_cost'           => (float)$rmCost,
-                    'grinding_cost'     => $grindingCost,
-                    'yield_percentage'  => $yieldPercentage,
                     'keywords'          => $keywords,
                     'description'       => $description,
                 ]
