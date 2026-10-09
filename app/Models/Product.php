@@ -14,9 +14,7 @@ class Product extends Model
         'name',
         'description',
         'rm_cost',
-        'grinding_cost',
-        'yield_percentage',
-        'keywords', // margin_percentage yahan se hata diya
+        'keywords', // margin_percentage, yield_percentage aur grinding_cost ab categories table me hain
     ];
 
     public function category()

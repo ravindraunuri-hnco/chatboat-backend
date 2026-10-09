@@ -61,8 +61,14 @@ class CategoryController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name',
             'description' => 'nullable|string',
-            'margin_percentage' => 'nullable|numeric|min:0|max:100',
+            'margin_percentage' => 'nullable|numeric|min:1|max:100',
+            'export_margin' => 'nullable|numeric|min:1|max:100',
+            'yield_percentage' => 'nullable|numeric|min:1|max:100',
+            'grinding_cost' => 'nullable|numeric|min:0',
         ]);
+
+        // Grinding cost khali = 0 (koi grinding cost nahi)
+        $validated['grinding_cost'] = $validated['grinding_cost'] ?? 0;
 
         $category = Category::create($validated);
 
@@ -92,14 +98,20 @@ class CategoryController extends Controller
     public function update(Request $request, Category $category)
     {
         $this->authorize('update', $category);
-        // dd($request);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
             'description' => 'nullable|string',
             'margin_percentage' => 'nullable|numeric|min:1|max:100',
             'export_margin' => 'nullable|numeric|min:1|max:100',
+            'yield_percentage' => 'nullable|numeric|min:1|max:100',
+            'grinding_cost' => 'nullable|numeric|min:0',
         ]);
+
+        // Grinding cost khali bheji ho to 0 (column NOT NULL hai)
+        if (array_key_exists('grinding_cost', $validated)) {
+            $validated['grinding_cost'] = $validated['grinding_cost'] ?? 0;
+        }
 
         $category->update($validated);
 
@@ -118,11 +130,14 @@ class CategoryController extends Controller
         // 1. Pehle category ko find karo
         $category = \App\Models\Category::findOrFail($id);
 
-        // 2. Category delete hone se pehle, us category_id wale saare products delete kar do
-        \App\Models\Product::where('category_id', $category->id)->delete();
+        // Permission check ('categories' delete) — pehle yahan koi check nahi tha
+        $this->authorize('delete', $category);
 
-        // 3. Ab main category ko delete kar do
-        $category->delete();
+        // 2 + 3. Category ke saare products aur phir category — ek saath (atomic)
+        \Illuminate\Support\Facades\DB::transaction(function () use ($category) {
+            \App\Models\Product::where('category_id', $category->id)->delete();
+            $category->delete();
+        });
 
         return response()->json([
             'status' => 'success',

@@ -13,6 +13,11 @@ class RolePermissionController extends Controller
      */
     public function index(Request $request)
     {
+        // Sirf admin panel users (chatbot users nahi)
+        if (!$request->user() instanceof \App\Models\User) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         // Strict Role Filter Engine
         $roleId = $request->query('role_id');
         

@@ -25,8 +25,6 @@ class ProductController extends Controller
             
             // 🔥 CLEAR: margin_percentage yahan se hamesha ke liye hata diya
             'rm_cost' => $product->rm_cost,
-            'grinding_cost' => $product->grinding_cost,
-            'yield_percentage' => $product->yield_percentage,
             'keywords' => $product->keywords,
             'description' => $product->description,
         ];
@@ -70,9 +68,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'name' => 'required|string|max:255',
-            'rm_cost' => 'required|numeric|min:0', 
-            'grinding_cost' => 'nullable|numeric|min:0',
-            'yield_percentage' => 'nullable|numeric|min:0',
+            'rm_cost' => 'required|numeric|min:1',
             'description' => 'nullable|string',
             'keywords' => 'nullable|string|max:255',
         ]);
@@ -110,9 +106,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'name' => 'required|string|max:255',
-            'rm_cost' => 'required|numeric|min:0',
-            'grinding_cost' => 'nullable|numeric|min:0',
-            'yield_percentage' => 'nullable|numeric|min:0',
+            'rm_cost' => 'required|numeric|min:1',
             'description' => 'nullable|string',
             'keywords' => 'nullable|string|max:255',
         ]);

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Category extends Model
 {
-    protected $fillable = ['name', 'description', 'margin_percentage', 'export_margin'];
+    protected $fillable = ['name', 'description', 'margin_percentage', 'export_margin', 'yield_percentage', 'grinding_cost'];
 
     /**
      * Products in this category.
