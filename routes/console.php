@@ -22,8 +22,8 @@ Schedule::command('app:update-exchange-rate')->hourly();
 |--------------------------------------------------------------------------
 | CHATBOT AUTOMATION (Midnight Cleanup)
 |--------------------------------------------------------------------------
-| Ye code roz raat ko 12:00 AM (Indian Time) chalega aur 
-| purani chat history delete kar dega.
+| This code runs every night at 12:00 AM (Indian Time) and will
+| delete the old chat history.
 */
 Schedule::call(function () {
     ChatHistory::truncate();

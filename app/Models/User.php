@@ -1,8 +1,8 @@
 <?php
 // FILE: app/Models/User.php
-// ✅ FIX: hasPermission() mein wherePivot($action, true) ki jagah wherePivot($action, 1)
-//         Database mein column boolean hai (0/1 integers),
-//         strict `true` se match fail hoti thi silently
+// ✅ FIX: in hasPermission(), use wherePivot($action, 1) instead of wherePivot($action, true)
+//         The database column is a boolean (0/1 integers),
+//         matching against strict `true` failed silently
 
 namespace App\Models;
 
@@ -45,35 +45,44 @@ class User extends Authenticatable
     }
 
     /**
-     * Permission check — action optional rakha taaki Policy calls crash na hon.
+     * Permission check — the action is optional so Policy calls do not crash.
      *
      * ✅ FIX: wherePivot($action, true)  →  wherePivot($action, 1)
      *
-     * Reason: role_permissions table mein read/write/update/delete columns
-     * BOOLEAN (tinyint 0/1) hain. MySQL strict mode mein `true` PHP boolean
-     * kabhi kabhi integer 1 se match nahi karta pivot query mein.
-     * `1` explicitly dena safe aur consistent hai.
+     * Reason: the read/write/update/delete columns of the role_permissions table are
+     * BOOLEAN (tinyint 0/1). In MySQL strict mode a PHP `true` boolean
+     * sometimes fails to match integer 1 in the pivot query.
+     * Passing `1` explicitly is safe and consistent.
      */
     public function hasPermission(string $permissionName, string $action = null): bool
     {
-        // 1. Super Admin ko sab kuch allowed
+        // 1. Super Admin is allowed everything
         if ($this->isSuperAdmin()) {
             return true;
         }
 
-        // 2. Role nahi hai to block
+        // 2. Block if there is no role
         if (!$this->role) {
             return false;
         }
 
-        // 3. Pivot table se check
-        $query = $this->role->permissions()->where('permissions.name', $permissionName);
+        // 3. Match the name against the role's permissions.
+        //    Names are normalized, so "product requests" / "product_requests" / "product_request" are all the same permission.
+        foreach ($this->role->permissions as $permission) {
+            if (!Permission::sameKey($permission->name, $permissionName)) {
+                continue;
+            }
 
-        if ($action) {
-            // ✅ FIX: `true` ki jagah `1` — boolean column ke saath reliable match
-            $query->wherePivot($action, 1);
+            // If no action is given, just check that the role has this permission assigned
+            if (!$action) {
+                return true;
+            }
+
+            if ((int) ($permission->pivot->{$action} ?? 0) === 1) {
+                return true;
+            }
         }
 
-        return $query->exists();
+        return false;
     }
 }

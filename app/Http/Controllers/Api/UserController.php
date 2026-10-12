@@ -39,7 +39,7 @@ class UserController extends Controller
         // 🔥 SECURITY FIX: Prevent normal admins from assigning 'super_admin' role
         $role = Role::find($request->role_id);
         if ($role && $role->name === 'super_admin' && $request->user()->role->name !== 'super_admin') {
-            return response()->json(['message' => 'Aapko kisi ko super_admin banane ka access nahi hai.'], 403);
+            return response()->json(['message' => 'You do not have access to make anyone a super_admin.'], 403);
         }
 
         $user = User::create([
@@ -80,7 +80,7 @@ class UserController extends Controller
 
         // 🔥 SECURITY FIX: Prevent normal admins from updating an existing 'super_admin'
         if ($targetUser->role && $targetUser->role->name === 'super_admin' && $request->user()->role->name !== 'super_admin') {
-            return response()->json(['message' => 'Aap super_admin ka data update nahi kar sakte.'], 403);
+            return response()->json(['message' => 'You cannot update a super_admin\'s data.'], 403);
         }
 
         $request->validate([
@@ -93,10 +93,10 @@ class UserController extends Controller
         // 🔥 SECURITY FIX: Prevent normal admins from changing someone's role TO 'super_admin'
         $newRole = Role::find($request->role_id);
         if ($newRole && $newRole->name === 'super_admin' && $request->user()->role->name !== 'super_admin') {
-            return response()->json(['message' => 'Aap kisi ko super_admin ka role assign nahi kar sakte.'], 403);
+            return response()->json(['message' => 'You cannot assign the super_admin role to anyone.'], 403);
         }
 
-        // UPDATE ALL DATA: Name, Email, Role aur (agar dala ho toh) Password
+        // UPDATE ALL DATA: Name, Email, Role and (if provided) Password
         $targetUser->name = $request->name;
         $targetUser->email = $request->email;
         $targetUser->role_id = $request->role_id;
@@ -124,11 +124,11 @@ class UserController extends Controller
 
         // 🔥 SECURITY FIX: Prevent normal admins from deleting a 'super_admin'
         if ($targetUser->role && $targetUser->role->name === 'super_admin' && $request->user()->role->name !== 'super_admin') {
-            return response()->json(['message' => 'Aap super_admin ko delete nahi kar sakte.'], 403);
+            return response()->json(['message' => 'You cannot delete a super_admin.'], 403);
         }
 
         if ($request->user()->id === $targetUser->id) {
-            return response()->json(['message' => 'Aap apna khud ka account delete nahi kar sakte.'], 403);
+            return response()->json(['message' => 'You cannot delete your own account.'], 403);
         }
 
         $targetUser->delete();

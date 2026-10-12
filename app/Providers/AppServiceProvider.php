@@ -39,26 +39,20 @@ class AppServiceProvider extends ServiceProvider
             $modelArg = is_array($args) ? $args[0] : $args;
             $className = is_string($modelArg) ? class_basename($modelArg) : class_basename(get_class($modelArg));
             
-            // 🔥 FIX: Ab ye perfectly plurals par mapped hai jisse permissions perfectly chalengi
+            // Name mapping for older models (where the model name and the permission name differ)
             $modelMap = [
-                'Product'         => 'products',
-                'Category'        => 'categories',
                 'ProductCategory' => 'categories',
-                'User'            => 'users',
-                'Role'            => 'roles',
-                'Permission'      => 'permissions',
-                'RolePermission'  => 'role_permissions',
-                'Margin'          => 'margins',
             ];
 
-            $resourceName = $modelMap[$className] ?? strtolower($className);
-            $permissionExists = \App\Models\Permission::where('name', $resourceName)->exists();
+            // New models need no mapping: the permission is found automatically from the model name.
+            // Product -> products, Category -> categories, ProductRequest -> product_requests (names are matched after normalization)
+            $resourceName = $modelMap[$className] ?? \Illuminate\Support\Str::plural(\Illuminate\Support\Str::snake($className));
+            $permissionModel = \App\Models\Permission::findByKey($resourceName);
+            $permissionExists = (bool) $permissionModel;
 
             if ($permissionExists) {
                 $query = \App\Models\RolePermission::where('role_id', $user->role_id)
-                    ->whereHas('permission', function($q) use ($resourceName) {
-                        $q->where('name', $resourceName);
-                    });
+                    ->where('permission_id', $permissionModel->id);
 
                 if ($action === 'read') {
                     $hasAccess = $query->where(function($q) {

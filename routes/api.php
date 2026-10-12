@@ -10,7 +10,8 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\RolePermissionController;
 use App\Http\Controllers\Api\ChatbotController;
-use App\Http\Controllers\Api\ExchangeRateController; // 🔥 Controller import kiya
+use App\Http\Controllers\Api\ProductRequestController;
+use App\Http\Controllers\Api\ExchangeRateController; // 🔥 Controller imported
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/login', function () {
@@ -65,10 +66,20 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     |----------------------
+    | NEW PRODUCT REQUESTS (ADMIN PANEL SIDE)
+    |----------------------
+    */
+    Route::get('product-requests', [ProductRequestController::class, 'index']);
+    Route::get('product-requests/pending-count', [ProductRequestController::class, 'pendingCount']);
+    Route::post('product-requests/{id}/add', [ProductRequestController::class, 'add']);
+    Route::post('product-requests/{id}/cancel', [ProductRequestController::class, 'cancel']);
+
+    /*
+    |----------------------
     | EXCHANGE RATE (SUPER ADMIN ONLY)
     |----------------------
     */
-    // 🔥 Naye routes add kiye Exchange Rate ke liye
+    // 🔥 Added new routes for Exchange Rate
     Route::get('exchange-rate', [ExchangeRateController::class, 'show']);
     Route::put('exchange-rate', [ExchangeRateController::class, 'update']);
 
@@ -109,14 +120,20 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('chatbot')->group(function () {
-    // Public Routes (Bina login ke chalenge)
+    // Public Routes (work without logging in)
     Route::post('register', [ChatbotController::class, 'register']);
     Route::post('login', [ChatbotController::class, 'login']);
 
-    // Protected Routes (Sirf logged-in chatbot users ke liye)
+    // Protected Routes (for logged-in chatbot users only)
     Route::middleware('auth:sanctum')->group(function () {
+        Route::get('me', [ChatbotController::class, 'me']);
         Route::post('chat', [ChatbotController::class, 'chat']);
         Route::get('chat', [ChatbotController::class, 'getChat']);
         Route::delete('chat', [ChatbotController::class, 'deleteChat']);
+
+        // Export users: request a new product
+        Route::get('request-categories', [ChatbotController::class, 'getRequestCategories']);
+        Route::get('product-requests', [ChatbotController::class, 'getMyProductRequests']);
+        Route::post('product-requests', [ChatbotController::class, 'storeProductRequest']);
     });
 });

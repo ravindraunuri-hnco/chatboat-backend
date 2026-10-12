@@ -23,10 +23,15 @@ class ProductController extends Controller
             'category_id' => $product->category_id,
             'category_name' => $product->category?->name,
             
-            // 🔥 CLEAR: margin_percentage yahan se hamesha ke liye hata diya
+            // 🔥 CLEAR: margin_percentage has been removed from here permanently
             'rm_cost' => $product->rm_cost,
             'keywords' => $product->keywords,
             'description' => $product->description,
+            'slug' => $product->slug,
+            'created_by' => $product->created_by,
+            'created_by_name' => $product->creator?->name,
+            'updated_by' => $product->updated_by,
+            'updated_by_name' => $product->updater?->name,
         ];
     }
 
@@ -37,7 +42,7 @@ class ProductController extends Controller
     {
         $this->authorize('viewAny', Product::class);
 
-        $query = Product::query()->with('category');
+        $query = Product::query()->with(['category', 'creator:id,name', 'updater:id,name']);
 
         if ($request->has('search')) {
             $searchTerm = $request->input('search');
@@ -64,7 +69,7 @@ class ProductController extends Controller
     {
         $this->authorize('create', Product::class);
 
-        // 🔥 CLEAR: margin_percentage hata diya
+        // 🔥 CLEAR: margin_percentage removed
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'name' => 'required|string|max:255',
@@ -73,12 +78,18 @@ class ProductController extends Controller
             'keywords' => 'nullable|string|max:255',
         ]);
 
+        Product::assertNameAvailable($validated['name'], null, 'product');
+
+        // Logged-in admin's id: new product -> both created_by and updated_by
+        $validated['created_by'] = $request->user()->id;
+        $validated['updated_by'] = $request->user()->id;
+
         $product = Product::create($validated);
 
         return response()->json([
             'status' => 'success',
             'message' => 'Product created successfully',
-            'data' => $this->formatProduct($product->load('category')),
+            'data' => $this->formatProduct($product->load(['category', 'creator:id,name', 'updater:id,name'])),
         ], 201);
     }
 
@@ -91,7 +102,7 @@ class ProductController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $this->formatProduct($product->load('category'))
+            'data' => $this->formatProduct($product->load(['category', 'creator:id,name', 'updater:id,name']))
         ]);
     }
 
@@ -102,7 +113,7 @@ class ProductController extends Controller
     {
         $this->authorize('update', $product);
 
-        // 🔥 CLEAR: margin_percentage hata diya
+        // 🔥 CLEAR: margin_percentage removed
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'name' => 'required|string|max:255',
@@ -111,12 +122,17 @@ class ProductController extends Controller
             'keywords' => 'nullable|string|max:255',
         ]);
 
+        Product::assertNameAvailable($validated['name'], $product->id, 'product');
+
+        // Logged-in admin's id: only updated_by changes, created_by stays the same
+        $validated['updated_by'] = $request->user()->id;
+
         $product->update($validated);
 
         return response()->json([
             'status' => 'success',
             'message' => 'Product updated successfully',
-            'data' => $this->formatProduct($product->load('category')),
+            'data' => $this->formatProduct($product->load(['category', 'creator:id,name', 'updater:id,name'])),
         ]);
     }
 
@@ -143,7 +159,7 @@ class ProductController extends Controller
         $this->authorize('viewAny', Product::class);
 
         $products = Product::where('category_id', $categoryId)
-            ->with('category')
+            ->with(['category', 'creator:id,name', 'updater:id,name'])
             ->get()
             ->map(fn($product) => $this->formatProduct($product));
 
@@ -171,7 +187,7 @@ class ProductController extends Controller
                 ->orWhere('description', 'like', '%' . $searchTerm . '%')
                 ->orWhere('keywords', 'like', '%' . $searchTerm . '%');
         })
-            ->with('category')
+            ->with(['category', 'creator:id,name', 'updater:id,name'])
             ->get()
             ->map(fn($product) => $this->formatProduct($product));
 

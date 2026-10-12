@@ -1,8 +1,8 @@
 <?php
 // FILE: app/Http/Controllers/Api/CategoryController.php
-// ✅ FIX: indexForProduct() nayi method add ki
-//         Yeh method sirf 'product' read permission check karta hai
-//         Taaki Products page pe category dropdown kaam kare bina
+// ✅ FIX: added the new indexForProduct() method
+//         This method checks only the 'product' read permission
+//         So the category dropdown on the Products page works without
 //         'category' read permission ke
 
 namespace App\Http\Controllers\Api;
@@ -17,14 +17,31 @@ class CategoryController extends Controller
     use AuthorizesRequests;
 
     /**
+     * Category plus the name of the admin who created/updated it (for the admin Categories page).
+     */
+    private function formatCategory(Category $category): array
+    {
+        $category->loadMissing(['creator:id,name', 'updater:id,name']);
+
+        $data = $category->toArray();
+        unset($data['creator'], $data['updater']);
+
+        return $data + [
+            'created_by_name' => $category->creator?->name,
+            'updated_by_name' => $category->updater?->name,
+        ];
+    }
+
+    /**
      * Display a listing of the resource.
-     * (Requires 'category' read permission - Categories page ke liye)
+     * (Requires 'category' read permission - for the Categories page)
      */
     public function index(Request $request)
     {
         $this->authorize('viewAny', Category::class);
 
-        $categories = Category::all();
+        $categories = Category::with(['creator:id,name', 'updater:id,name'])->get()
+            ->map(fn ($c) => $this->formatCategory($c));
         return response()->json([
             'status' => 'success',
             'data' => $categories
@@ -32,14 +49,14 @@ class CategoryController extends Controller
     }
 
     /**
-     * ✅ NAYI METHOD: Products page ke liye categories list
-     * Yeh endpoint 'product' read permission check karta hai — 'category' nahi
-     * Isliye agar kisi role ko sirf product read dia ho, woh bhi
-     * product add/edit form mein categories dekh sakta hai
+     * ✅ NEW METHOD: categories list for the Products page
+     * This endpoint checks the 'product' read permission — not 'category'
+     * So a role that has only product read access can also
+     * see the categories in the product add/edit form
      */
     public function indexForProduct(Request $request)
     {
-        // Product ki permission check karo — category ki nahi
+        // Check the product permission — not the category one
         if (!$request->user()->hasPermission('products', 'read')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -67,15 +84,21 @@ class CategoryController extends Controller
             'grinding_cost' => 'nullable|numeric|min:0',
         ]);
 
-        // Grinding cost khali = 0 (koi grinding cost nahi)
+        Category::assertNameAvailable($validated['name'], null, 'category');
+
+        // Empty processing cost = 0 (no processing cost)
         $validated['grinding_cost'] = $validated['grinding_cost'] ?? 0;
+
+        // Logged-in admin's id: new category -> both created_by and updated_by
+        $validated['created_by'] = $request->user()->id;
+        $validated['updated_by'] = $request->user()->id;
 
         $category = Category::create($validated);
 
         return response()->json([
             'status' => 'success',
             'message' => 'Category created successfully',
-            'data' => $category
+            'data' => $this->formatCategory($category)
         ], 201);
     }
 
@@ -88,7 +111,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $category
+            'data' => $this->formatCategory($category)
         ]);
     }
 
@@ -108,17 +131,22 @@ class CategoryController extends Controller
             'grinding_cost' => 'nullable|numeric|min:0',
         ]);
 
-        // Grinding cost khali bheji ho to 0 (column NOT NULL hai)
+        // If the processing cost is sent empty, store 0 (the column is NOT NULL)
         if (array_key_exists('grinding_cost', $validated)) {
             $validated['grinding_cost'] = $validated['grinding_cost'] ?? 0;
         }
+
+        Category::assertNameAvailable($validated['name'], $category->id, 'category');
+
+        // Logged-in admin's id: only updated_by changes, created_by stays the same
+        $validated['updated_by'] = $request->user()->id;
 
         $category->update($validated);
 
         return response()->json([
             'status' => 'success',
             'message' => 'Category updated successfully',
-            'data' => $category
+            'data' => $this->formatCategory($category)
         ]);
     }
 
@@ -127,13 +155,13 @@ class CategoryController extends Controller
      */
     public function destroy($id)
     {
-        // 1. Pehle category ko find karo
+        // 1. First find the category
         $category = \App\Models\Category::findOrFail($id);
 
-        // Permission check ('categories' delete) — pehle yahan koi check nahi tha
+        // Permission check ('categories' delete) — there was no check here before
         $this->authorize('delete', $category);
 
-        // 2 + 3. Category ke saare products aur phir category — ek saath (atomic)
+        // 2 + 3. All products of the category and then the category — together (atomic)
         \Illuminate\Support\Facades\DB::transaction(function () use ($category) {
             \App\Models\Product::where('category_id', $category->id)->delete();
             $category->delete();
@@ -141,7 +169,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Category aur uske saare products successfully delete ho gaye hain.'
+            'message' => 'The category and all its products were deleted successfully.'
         ]);
     }
 }

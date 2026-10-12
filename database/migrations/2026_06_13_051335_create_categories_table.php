@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->decimal('margin_percentage', 5, 2)->nullable();
 
-            // Ye raha aapka naya keyword column
+            // The new keyword column
             $table->string('keyword')->nullable();
 
             $table->timestamps();

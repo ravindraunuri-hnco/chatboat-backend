@@ -10,16 +10,16 @@ class RoleController extends Controller
 {
     /**
      * 100% DYNAMIC ACCESS CHECKER ENGINE
-     * Yeh sidha database se check karega ki user ke paas action ka hak hai ya nahi
+     * This checks directly in the database whether the user has the right to perform the action
      */
     private function checkAccess($user, $resourceName, $action)
     {
-        // Super Admin ko hamesha full access
+        // Super Admin always has full access
         if ($user->role && $user->role->name === 'super_admin') {
             return true;
         }
         
-        // Database queries se exact 0 / 1 permission uthana
+        // Read the exact 0 / 1 permission via database queries
         $hasAccess = \App\Models\RolePermission::where('role_id', $user->role_id)
             ->whereHas('permission', function($q) use ($resourceName) {
                 $q->where('name', $resourceName);
@@ -34,7 +34,7 @@ class RoleController extends Controller
     {
         // Dynamic Read Permission Check
         if (!$this->checkAccess($request->user(), 'roles', 'read')) {
-            return response()->json(['message' => 'Aapko Roles dekhne ki permission nahi hai.'], 403);
+            return response()->json(['message' => 'You do not have permission to view roles.'], 403);
         }
 
         return response()->json(['data' => Role::all()]);
@@ -44,7 +44,7 @@ class RoleController extends Controller
     {
         // Dynamic Write Permission Check
         if (!$this->checkAccess($request->user(), 'roles', 'write')) {
-            return response()->json(['message' => 'Aapko naya Role banane ki permission nahi hai.'], 403);
+            return response()->json(['message' => 'You do not have permission to create a role.'], 403);
         }
 
         $validated = $request->validate([
@@ -53,7 +53,7 @@ class RoleController extends Controller
 
         $role = Role::create($validated);
 
-        // Naye role ke liye default 0 permissions automatically set karna
+        // Automatically set default 0 permissions for the new role
         $permissions = \App\Models\Permission::all();
         foreach ($permissions as $perm) {
             \App\Models\RolePermission::create([

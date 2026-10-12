@@ -8,31 +8,31 @@ use Illuminate\Support\Facades\Cache;
 
 class UpdateExchangeRate extends Command
 {
-    // Command ka naam jo terminal ya background me chalega
+    // Command name that runs from the terminal or in the background
     protected $signature = 'app:update-exchange-rate';
     
-    protected $description = 'Free API se live USD to INR rate fetch karke Cache me save karta hai';
+    protected $description = 'Fetches the live USD to INR rate from a free API and saves it in the cache';
 
     public function handle()
     {
         try {
-            // Google ki jagah ab hum Free Exchange Rate API (JSON) use kar rahe hain
+            // We now use a free Exchange Rate API (JSON) instead of Google
             $response = Http::timeout(5)->get('https://open.er-api.com/v6/latest/USD');
 
             if ($response->successful()) {
                 $data = $response->json();
                 
-                // Direct INR ka rate nikal liya
+                // Read the INR rate directly
                 if (isset($data['rates']['INR'])) {
                     $rate = (float) $data['rates']['INR'];
                     
-                    // Rate ko memory (Cache) me life-time save kar do
+                    // Save the rate in memory (Cache) permanently
                     Cache::put('usd_to_inr_rate', $rate);
                     $this->info("✅ Success! Live Rate Saved: 1 USD = ₹{$rate}");
                     return;
                 }
             }
-            $this->warn("⚠️ API data fetch nahi ho paya, purana cache use hoga.");
+            $this->warn("⚠️ Could not fetch API data, the old cache will be used.");
         } catch (\Exception $e) {
             $this->error("❌ Error: " . $e->getMessage());
         }

@@ -10,14 +10,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Grinding cost ab category level pe hai. Khali = 0 (koi grinding cost nahi).
+        // The processing (grinding) cost now lives at category level. Empty = 0 (no processing cost).
         Schema::table('categories', function (Blueprint $table) {
             $table->decimal('grinding_cost', 10, 2)->default(0)->after('yield_percentage');
         });
 
-        // Product ki grinding cost -> uski category me copy.
-        // Category ke products ki grinding alag-alag ho to sabse common value li jaati hai
-        // (barabari par badi value). Product me khali grinding = 0 maani jaati hai.
+        // Copy the product's processing (grinding) cost -> its category.
+        // If the products of a category have different processing costs, the most common value is used
+        // (the larger value on a tie). An empty value on a product is treated as 0.
         $perCategory = DB::table('products')
             ->whereNotNull('category_id')
             ->get(['category_id', 'grinding_cost'])
@@ -30,7 +30,7 @@ return new class extends Migration
                 $counts[$key] = ($counts[$key] ?? 0) + 1;
             }
 
-            // Sabse zyada baar aane wali value; barabari par badi value.
+            // The most frequent value; the larger value on a tie.
             uksort($counts, fn ($a, $b) => $counts[$b] <=> $counts[$a] ?: (float) $b <=> (float) $a);
             $chosen = array_key_first($counts);
 

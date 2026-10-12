@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('categories', function (Blueprint $table) {
-            // Yeh command bina data delete kiye chalte huye table mein column add karegi
+            // This command adds the column to the table without deleting any data
             $table->decimal('export_margin', 5, 2)->nullable()->after('margin_percentage');
         });
     }

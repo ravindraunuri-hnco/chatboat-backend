@@ -15,9 +15,9 @@ return new class extends Migration
             $table->string('name');
             $table->text('description')->nullable();
             
-            // Yahan se price hamesha ke liye hata diya gaya hai
-            $table->decimal('rm_cost', 10, 2)->nullable(); // Purches price yahan aayegi
-            $table->decimal('grinding_cost', 10, 2)->nullable(); // Processing cost yahan aayegi
+            // The price has been removed from here permanently
+            $table->decimal('rm_cost', 10, 2)->nullable(); // The purchase price goes here
+            $table->decimal('grinding_cost', 10, 2)->nullable(); // The processing cost goes here
             $table->decimal('yield_percentage', 10, 2)->nullable(); 
             $table->decimal('margin_percentage', 5, 2)->nullable();
             $table->string('keywords')->nullable();

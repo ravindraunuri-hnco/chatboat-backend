@@ -46,20 +46,20 @@ class PermissionController extends Controller
         $tablesList = DB::select('SHOW TABLES');
         $tables = array_map('current', $tablesList);
 
-        // Agar SQLite use ho raha ho fallback ke liye
+        // Fallback in case SQLite is being used
         if (empty($tables)) {
             $tablesList = DB::select("SELECT name FROM sqlite_master WHERE type='table'");
             $tables = array_map(function($t) { return $t->name; }, $tablesList);
         }
 
-        // Check karte hain ki user ne jo naam daala he uska singular ya plural table DB me hai ya nahi
+        // Check whether a table matching the entered name (singular or plural) exists in the DB
         if (!in_array($inputName, $tables) && !in_array($pluralName, $tables)) {
             return response()->json([
-                'message' => 'Aap ye permission create nahi kar sakte! Database me "' . $request->name . '" (ya "' . $pluralName . '") naam ka koi table maujud nahi hai.'
+                'message' => 'You cannot create this permission! No table named "' . $request->name . '" (or "' . $pluralName . '") exists in the database.'
             ], 422);
         }
 
-        // Agar validation pass ho gayi toh permission ban jayegi
+        // If validation passes, the permission is created
         $permission = Permission::create([
             'name' => $request->name
         ]);

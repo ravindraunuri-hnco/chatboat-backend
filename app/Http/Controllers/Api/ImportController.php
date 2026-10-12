@@ -33,7 +33,7 @@ class ImportController extends Controller
         ]);
 
         try {
-            $import = new CategoryImport();
+            $import = new CategoryImport($request->user()->id);
             Excel::import($import, $request->file('file'));
 
             return response()->json([
@@ -61,7 +61,7 @@ class ImportController extends Controller
         ]);
 
         try {
-            $import = new ProductImport();
+            $import = new ProductImport($request->user()->id);
             Excel::import($import, $request->file('file'));
 
             return response()->json([

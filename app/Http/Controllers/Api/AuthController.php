@@ -17,21 +17,21 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        // 🔥 FIX 1: Eager loading me se '.permission' hata diya. 
-        // Kyuki Role -> permissions() ek BelongsToMany relation hai, ye direct Permission models lata hai.
+        // 🔥 FIX 1: removed '.permission' from the eager loading. 
+        // Because Role -> permissions() is a BelongsToMany relation, it returns Permission models directly.
         $user = User::with(['role', 'role.permissions'])
             ->where('email', $request->email)
             ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Email ya password galat hai.'],
+                'email' => ['Incorrect email or password.'],
             ]);
         }
 
         $token = $user->createToken('api-token')->plainTextToken;
         
-        // Helper function se safe permissions calculate karna
+        // Calculate permissions safely using a helper function
         $permissions = $this->getUserPermissions($user);
 
         return response()->json([
@@ -51,12 +51,12 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        // Chatbot users ke token bhi Sanctum token hain — unko admin data nahi milna chahiye
+        // Chatbot user tokens are also Sanctum tokens — they must not get admin data
         if (!$request->user() instanceof User) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        // 🔥 FIX 1 (Same yahan bhi eagerly loading theek ki hai)
+        // 🔥 FIX 1 (the same eager loading fix applied here too)
         $user = User::with(['role', 'role.permissions'])->find($request->user()->id);
         
         $permissions = $this->getUserPermissions($user);
@@ -87,11 +87,11 @@ class AuthController extends Controller
         if ($user->role->permissions) {
             foreach ($user->role->permissions as $rp) {
                 
-                // 🔥 FIX 2: Tumhare database me Pivot table lagai hui hai. 
-                // Isliye hum seedha $rp->name (Permission ka naam) aur $rp->pivot->read (Access flag) nikalenge.
+                // 🔥 FIX 2: Your database uses a pivot table. 
+                // So we read $rp->name (the permission name) and $rp->pivot->read (the access flag) directly.
                 if (isset($rp->pivot) && isset($rp->name)) {
                     
-                    // Pichla fix: Space ko underscore me badalna ('Role Permissions' -> 'role_permissions')
+                    // Previous fix: convert spaces to underscores ('Role Permissions' -> 'role_permissions')
                     $rawName = strtolower($rp->name);
                     $name = str_replace([' ', '&'], ['_', ''], $rawName); 
                     $name = str_replace('__', '_', $name); 

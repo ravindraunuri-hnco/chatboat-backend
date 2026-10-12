@@ -7,7 +7,8 @@ use App\Models\ChatUser;
 use App\Models\ChatHistory;
 use App\Models\Product;
 use App\Models\Category;
-use App\Models\ExchangeRate; // 🔥 Yahan ExchangeRate model import kiya hai
+use App\Models\ProductRequest;
+use App\Models\ExchangeRate; // 🔥 ExchangeRate model imported here
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
@@ -57,6 +58,78 @@ class ChatbotController extends Controller
     }
 
     // ===================================
+    // PRODUCT REQUESTS (EXPORT USERS ONLY)
+    // ===================================
+    public function getMyProductRequests(Request $request)
+    {
+        $user = $request->user();
+        if ($user->user_type !== 'export') {
+            return response()->json(['message' => 'Only export users can view product requests.'], 403);
+        }
+
+        ProductRequest::purgeProcessed();
+
+        $requests = ProductRequest::with('category:id,name')
+            ->where('chat_user_id', $user->id)
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'product_name' => $r->product_name,
+                'category_name' => $r->category ? $r->category->name : $r->custom_category_name,
+                'deadline' => $r->deadline->format('Y-m-d'),
+                'status' => $r->status,
+                'created_at' => $r->created_at->toIso8601String(),
+            ]);
+
+        return response()->json($requests);
+    }
+
+    public function getRequestCategories(Request $request)
+    {
+        if ($request->user()->user_type !== 'export') {
+            return response()->json(['message' => 'Only export users can request new products.'], 403);
+        }
+
+        return response()->json(
+            Category::orderBy('name')->get(['id', 'name'])
+        );
+    }
+
+    public function storeProductRequest(Request $request)
+    {
+        $user = $request->user();
+        if ($user->user_type !== 'export') {
+            return response()->json(['message' => 'Only export users can request new products.'], 403);
+        }
+
+        $today = Carbon::today('Asia/Kolkata')->toDateString();
+
+        // Only categories that exist in the database are allowed. Only the Super Admin can add a new category.
+        $data = $request->validate([
+            'product_name' => 'required|string|max:255',
+            'category_id' => 'required|integer|exists:categories,id',
+            'deadline' => "required|date|after_or_equal:$today",
+        ], [
+            'category_id.exists' => 'Please select a valid category.',
+            'deadline.after_or_equal' => 'Deadline cannot be a past date.',
+        ]);
+
+        $productRequest = ProductRequest::create([
+            'chat_user_id' => $user->id,
+            'product_name' => trim($data['product_name']),
+            'category_id' => (int) $data['category_id'],
+            'deadline' => $data['deadline'],
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Your product request has been sent.',
+            'data' => $productRequest,
+        ], 201);
+    }
+
+    // ===================================
     // AUTHENTICATION LOGIC (CHATBOT)
     // ===================================
     public function register(Request $request)
@@ -102,12 +175,26 @@ class ChatbotController extends Controller
         ]);
     }
 
+    public function me(Request $request)
+    {
+        $user = $request->user();
+        return response()->json([
+            "name" => $user->name,
+            "email" => $user->email,
+            "user_type" => $user->user_type,
+            // Notification number shown next to "Request New Product"
+            "pending_count" => $user->user_type === 'export'
+                ? ProductRequest::where('chat_user_id', $user->id)->where('status', 'pending')->count()
+                : 0,
+        ]);
+    }
+
     // ===================================
     // MANUAL CURRENCY READER (From DB)
     // ===================================
     private function getUsdExchangeRate()
     {
-        // 🔥 Cache hata kar ab direct Professional ExchangeRate Table se rate uthayega
+        // 🔥 Removed the cache; the rate is now read directly from the ExchangeRate table
         $exchange = ExchangeRate::where('currency_code', 'USD')->first();
         return $exchange ? (float) $exchange->rate : 84.00; 
     }
@@ -118,7 +205,7 @@ class ChatbotController extends Controller
     private function calculateFinalPrice($product, $category, $user = null)
     {
         try {
-            // Grinding cost aur yield ab category se aate hain (product se nahi). Grinding khali = 0.
+            // Processing (grinding) cost and yield now come from the category (not the product). Empty processing cost = 0.
             $grindingCost = $category ? (float) $category->grinding_cost : 0;
             $baseCost = (float) $product->rm_cost + $grindingCost;
             $yieldPct = $category ? (float) $category->yield_percentage : 0;
@@ -153,7 +240,7 @@ class ChatbotController extends Controller
     private function getDetailedCalculation($product, $category, $user = null)
     {
         try {
-            // Grinding cost aur yield ab category se aate hain (product se nahi). Grinding khali = 0.
+            // Processing (grinding) cost and yield now come from the category (not the product). Empty processing cost = 0.
             $grindingCost = $category ? (float) $category->grinding_cost : 0;
             $baseCost = (float) $product->rm_cost + $grindingCost;
             $yieldPct = $category ? (float) $category->yield_percentage : 0;
@@ -185,6 +272,7 @@ class ChatbotController extends Controller
 
             return [
                 "product_name" => $product->name,
+                "description" => trim((string) $product->description) !== '' ? trim((string) $product->description) : null,
                 "category_name" => $category->name ?? 'None',
                 "rm_cost" => round((float) $product->rm_cost, 2),
                 "grinding_cost" => round($grindingCost, 2),
@@ -204,7 +292,7 @@ class ChatbotController extends Controller
     }
 
     // ===================================
-    // REPLY BUILDERS (same output jo pehle inline tha)
+    // REPLY BUILDERS (same output that used to be inline)
     // ===================================
     private function productReply($product, $user, string $currencySymbol): array
     {
@@ -233,11 +321,11 @@ class ChatbotController extends Controller
     }
 
     // ===================================
-    // SMART MATCHING (spelling / adhoora naam / words ka order)
+    // SMART MATCHING (spelling / partial name / word order)
     //
-    // Sirf tab chalta hai jab purana exact ("contains") match kuch nahi dhundh paaya.
-    // Rule: price tabhi dikhao jab match bilkul clear ho (ek hi product/category).
-    // Shak ho to price NAHI, sirf "Did you mean" suggestion text. Galat product kabhi nahi.
+    // Runs only when the old exact ("contains") match found nothing.
+    // Rule: show the price only when the match is completely clear (exactly one product/category).
+    // If in doubt, NO price — only the "Did you mean" suggestion text. Never a wrong product.
     // ===================================
     private const SEARCH_STOPWORDS = [
         'price', 'prices', 'cost', 'costs', 'rate', 'rates', 'of', 'the', 'is', 'are', 'what', 'whats',
@@ -289,20 +377,20 @@ class ChatbotController extends Controller
         if ($q === $t) {
             return 1.0;
         }
-        // Numbers aur non-English words par spelling-guess nahi
+        // No spelling guess for numbers and non-English words
         if (ctype_digit($q) || ctype_digit($t) || preg_match('/[^\x00-\x7F]/', $q . $t)) {
             return 0.0;
         }
         $lq = strlen($q);
         $lt = strlen($t);
 
-        // Spelling guess: pehla letter same hona chahiye (galat match ka risk kam)
+        // Spelling guess: the first letter must match (lower risk of a wrong match)
         if ($q[0] === $t[0]) {
             if ($lq >= 5 && $lq < $lt && strpos($t, $q) === 0) {
                 return 0.9;
             }
 
-            // Chhote words (<=4) me galti allowed nahi; 5-7 me 1; 8+ me 2
+            // Short words (<=4): no mistakes allowed; 5-7: 1; 8+: 2
             $max = max($lq, $lt);
             $tolerance = $max <= 4 ? 0 : ($max <= 7 ? 1 : 2);
 
@@ -311,7 +399,7 @@ class ChatbotController extends Controller
             }
         }
 
-        // Bolne se aayi galti (voice): awaaz same, spelling alag (jaise "carella" / "karela")
+        // Mistakes caused by speaking (voice): same sound, different spelling (e.g. "carella" / "karela")
         if ($lq >= 5 && $lt >= 5) {
             $codeQ = metaphone($q);
             if (strlen($codeQ) >= 3 && $codeQ === metaphone($t)) {
@@ -365,13 +453,13 @@ class ChatbotController extends Controller
         $all = $matchedQuery === count($queryTokens);
         $equal = $all && count($usedPhraseTokens) === count($phraseTokens);
 
-        // Voice me words toot/jud sakte hain ("ashwa ganda" = "ashwagandha"):
-        // saare words jod kar poore naam se compare (chhoti galti allowed)
+        // With voice input, words can split/merge ("ashwa ganda" = "ashwagandha"):
+        // join all the words and compare with the full name (small mistakes allowed)
         if (!$equal && count($queryTokens) > 0) {
             $joinedQuery = implode('', $queryTokens);
             $total = count($phraseTokens);
 
-            // Naam ka koi bhi lagatar hissa (window) — poora naam ho to 'equal', warna sirf 'all'
+            // Any contiguous part (window) of the name — 'equal' if it is the full name, otherwise only 'all'
             for ($start = 0; $start < $total; $start++) {
                 for ($end = $start; $end < $total; $end++) {
                     $window = array_slice($phraseTokens, $start, $end - $start + 1);
@@ -389,8 +477,8 @@ class ChatbotController extends Controller
         }
 
         return [
-            'all' => $all,                                                   // query ka har word is naam me mila
-            'equal' => $equal,                                               // naam ka har word bhi query me mila
+            'all' => $all,                                                   // every word of the query was found in this name
+            'equal' => $equal,                                               // every word of the name was also found in the query
             'matched' => $matchedQuery,
             'score' => $score,
             'tokens' => array_keys($usedPhraseTokens),
@@ -399,7 +487,7 @@ class ChatbotController extends Controller
 
     /**
      * Returns ['type' => 'product'|'category', 'model' => ...]  (clear match)
-     *      or ['type' => 'suggest', 'names' => [...]]            (shak hai, price nahi)
+     *      or ['type' => 'suggest', 'names' => [...]]            (in doubt, no price)
      *      or ['type' => 'none'].
      */
     private function smartResolve(string $searchStr, $products, $categories): array
@@ -409,7 +497,7 @@ class ChatbotController extends Controller
             return ['type' => 'none'];
         }
 
-        // Entities: category wale products + categories; har ek ke naam/keywords phrases hain
+        // Entities: products that have a category + categories; each one's name/keywords are the phrases
         $entities = [];
         foreach ($products as $p) {
             if (!$p->category) {
@@ -456,7 +544,7 @@ class ChatbotController extends Controller
             }
         }
 
-        // 1) Naam bilkul wahi (spelling/order/plural ka farak ho sakta hai) — sirf ek ho tab
+        // 1) Exactly the same name (spelling/order/plural may differ) — only when there is just one
         $equal = array_keys(array_filter($results, fn ($m) => $m['equal']));
         if (count($equal) === 1) {
             return ['type' => $entities[$equal[0]]['type'], 'model' => $entities[$equal[0]]['model']];
@@ -465,7 +553,7 @@ class ChatbotController extends Controller
             return $this->suggestFrom($entities, array_slice($equal, 0, 5));
         }
 
-        // 2) Adhoora naam (jaise sirf "moringa") — query ka har word mile aur entity sirf EK ho
+        // 2) Partial name (e.g. just "moringa") — every query word matches and there is only ONE entity
         $all = array_keys(array_filter($results, fn ($m) => $m['all']));
         if (count($all) === 1) {
             return ['type' => $entities[$all[0]]['type'], 'model' => $entities[$all[0]]['model']];
@@ -474,7 +562,7 @@ class ChatbotController extends Controller
             return $this->suggestFrom($entities, array_slice($all, 0, 5));
         }
 
-        // 3) Sirf kuch words mile — price nahi, sabse nazdeek ke naam suggest
+        // 3) Only some words matched — no price, suggest the closest names
         $total = count($entities);
         $scored = [];
         foreach ($results as $key => $m) {
@@ -484,7 +572,7 @@ class ChatbotController extends Controller
             $weight = 0.0;
             foreach ($m['tokens'] as $t) {
                 $df = $documentFrequency[$t] ?? 1;
-                // Bahut common word (jaise "organic" sab me) ka weight lagbhag zero
+                // A very common word (e.g. "organic" appears in everything) gets almost zero weight
                 $weight += ($total >= 4 && $df / $total >= 0.5) ? 0.05 : 1 / $df;
             }
             if ($weight >= 0.3) {
@@ -570,8 +658,8 @@ class ChatbotController extends Controller
             }
         }
 
-        // Exact match nahi mila — smart matching (spelling / adhoora naam / words ka order).
-        // Price sirf clear match par; shak ho to sirf "Did you mean" text.
+        // No exact match found — smart matching (spelling / partial name / word order).
+        // Price only on a clear match; if in doubt, only the "Did you mean" text.
         if ($responseText === $notFoundText) {
             $categories = $categories ?? Category::with('products')->get();
             $smart = $this->smartResolve($searchStr, $products, $categories);

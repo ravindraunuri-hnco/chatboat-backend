@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('chat_users', function (Blueprint $table) {
-            // Naya column 'user_type' add hoga jiska default 'normal' rahega
+            // Adds a new 'user_type' column with the default 'normal'
             $table->enum('user_type', ['normal', 'export'])->default('normal')->after('password');
         });
     }

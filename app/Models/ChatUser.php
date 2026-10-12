@@ -11,7 +11,7 @@ class ChatUser extends Authenticatable
 
     protected $table = 'chat_users';
     
-    // user_type add kar diya
+    // added user_type
     protected $fillable = ['name', 'email', 'password', 'user_type']; 
     
     protected $hidden = ['password'];

@@ -17,6 +17,11 @@ class ProductImport implements ToCollection, WithHeadingRow
         'errors'   => [],
     ];
 
+    // Logged-in admin's id (for created_by / updated_by)
+    public function __construct(private ?int $userId = null)
+    {
+    }
+
     public function collection(Collection $rows)
     {
         foreach ($rows as $index => $row) {
@@ -45,38 +50,43 @@ class ProductImport implements ToCollection, WithHeadingRow
 
             if (!empty($categoryName)) {
                 // Automatically create category if it does not exist
-                $category = Category::firstOrCreate(
-                    [
-                        'name' => $categoryName,
-                    ],
-                    [
+                // Look up by slug so "Amla Powder" / "amla-powder" is not created again
+                $category = Category::where('slug', Category::slugFor($categoryName))->first()
+                    ?? Category::create([
+                        'name'        => $categoryName,
                         'description' => null,
-                        // Margin fallback logic yahan se permanently hata diya gaya hai
-                    ]
-                );
+                        'created_by'  => $this->userId,
+                        'updated_by'  => $this->userId,
+                    ]);
 
                 $categoryId = $category->id;
             }
 
             // Optional Fields
-            // yield_percentage aur grinding_cost ab category level pe hain (categories table)
+            // yield_percentage and grinding_cost now live at category level (categories table)
             $keywords = trim($row['keywords'] ?? '') ?: null;
 
             $description = trim($row['description'] ?? '') ?: null;
 
             // Insert new OR Update existing product
-            // margin_percentage column db me exist nahi karta, isliye yahan se bhi hata diya
-            Product::updateOrCreate(
-                [
-                    'name' => $productName,
-                ],
-                [
-                    'category_id'       => $categoryId,
-                    'rm_cost'           => (float)$rmCost,
-                    'keywords'          => $keywords,
-                    'description'       => $description,
-                ]
-            );
+            // the margin_percentage column does not exist in the db, so it was removed from here too
+            $attributes = [
+                'name'        => $productName,
+                'category_id' => $categoryId,
+                'rm_cost'     => (float)$rmCost,
+                'keywords'    => $keywords,
+                'description' => $description,
+                'updated_by'  => $this->userId,
+            ];
+
+            $existing = Product::where('slug', Product::slugFor($productName))->first();
+
+            if ($existing) {
+                // created_by stays the same, only updated_by changes
+                $existing->update($attributes);
+            } else {
+                Product::create($attributes + ['created_by' => $this->userId]);
+            }
 
             $this->results['inserted']++;
         }

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 🔥 FIX: Purani FastAPI ki tables ko pehle hatane ka command
+        // 🔥 FIX: command to drop the old FastAPI tables first
         Schema::dropIfExists('chat_history');
         Schema::dropIfExists('chat_users');
 

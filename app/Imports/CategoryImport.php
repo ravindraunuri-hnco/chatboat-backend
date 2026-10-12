@@ -1,6 +1,6 @@
 <?php
 // FILE: app/Imports/CategoryImport.php
-// CREATE this file — new folder app/Imports/ bhi banao
+// CREATE this file — also create the new folder app/Imports/
 
 namespace App\Imports;
 
@@ -17,6 +17,11 @@ class CategoryImport implements ToCollection, WithHeadingRow
         'skipped'  => 0,
         'errors'   => [],
     ];
+
+    // Logged-in admin's id (for created_by / updated_by)
+    public function __construct(private ?int $userId = null)
+    {
+    }
 
     public function collection(Collection $rows)
     {
@@ -55,16 +60,18 @@ class CategoryImport implements ToCollection, WithHeadingRow
             }
 
             $attributes = [
+                'name'        => $name,
                 'description' => $description,
+                'updated_by'  => $this->userId,
             ];
 
-            // Margin sirf tab update hoga jab sheet me value ho (existing margin overwrite/null na ho)
+            // Margin is updated only when the sheet has a value (so the existing margin is not overwritten/nulled)
             if ($marginPercentage !== null) {
                 $attributes['margin_percentage'] = $marginPercentage;
             }
 
-            // Optional yield percentage (sirf tab update hoga jab sheet me value ho,
-            // taaki column na hone par existing yield overwrite na ho)
+            // Optional yield percentage (updated only when the sheet has a value,
+            // so the existing yield is not overwritten if the column is absent)
             if (isset($row['yield_percentage']) && $row['yield_percentage'] !== '') {
 
                 if (!is_numeric($row['yield_percentage'])) {
@@ -84,7 +91,7 @@ class CategoryImport implements ToCollection, WithHeadingRow
                 $attributes['yield_percentage'] = $yieldPercentage;
             }
 
-            // Optional grinding cost (khali = 0 on create; existing me sirf tab update jab sheet me value ho)
+            // Optional grinding cost (empty = 0 on create; for existing rows, updated only when the sheet has a value)
             if (isset($row['grinding_cost']) && $row['grinding_cost'] !== '') {
 
                 if (!is_numeric($row['grinding_cost']) || (float) $row['grinding_cost'] < 0) {
@@ -97,12 +104,15 @@ class CategoryImport implements ToCollection, WithHeadingRow
             }
 
             // Create new category or update existing one
-            Category::updateOrCreate(
-                [
-                    'name' => $name,
-                ],
-                $attributes
-            );
+            // Look up by slug so "Amla Powder" / "amla-powder" is not created again
+            $existing = Category::where('slug', Category::slugFor($name))->first();
+
+            if ($existing) {
+                // created_by stays the same, only updated_by changes
+                $existing->update($attributes);
+            } else {
+                Category::create($attributes + ['created_by' => $this->userId]);
+            }
 
             $this->results['inserted']++;
         }

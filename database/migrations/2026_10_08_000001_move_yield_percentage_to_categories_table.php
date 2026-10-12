@@ -14,8 +14,8 @@ return new class extends Migration
             $table->decimal('yield_percentage', 10, 2)->nullable()->after('export_margin');
         });
 
-        // Categories jinke products ke yield alag-alag the, unko log karo
-        // (inme average yield category me aayega).
+        // Log the categories whose products had different yields
+        // (the average yield will be used for the category).
         $conflicts = DB::table('products')
             ->whereNotNull('category_id')
             ->whereNotNull('yield_percentage')
@@ -27,7 +27,7 @@ return new class extends Migration
             Log::warning('yield_percentage moved to categories using AVG for categories with differing product yields: ' . $conflicts->implode(','));
         }
 
-        // Product ka yield -> uski category me copy (same ho to exact value, alag ho to average).
+        // Copy the product's yield -> its category (the exact value if all are the same, otherwise the average).
         DB::statement(
             'UPDATE categories SET yield_percentage = (
                 SELECT ROUND(AVG(products.yield_percentage), 2)
