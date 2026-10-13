@@ -35,7 +35,7 @@ class ChatbotController extends Controller
         if (!$request->user()->hasPermission('users', 'update')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        $request->validate(['user_type' => 'required|in:normal,export']);
+        $request->validate(['user_type' => 'required|in:normal,export,sales']);
         $chatUser = ChatUser::findOrFail($id);
         $chatUser->update(['user_type' => $request->user_type]);
         return response()->json([
@@ -58,13 +58,13 @@ class ChatbotController extends Controller
     }
 
     // ===================================
-    // PRODUCT REQUESTS (EXPORT USERS ONLY)
+    // PRODUCT REQUESTS (EXPORT & SALES USERS ONLY)
     // ===================================
     public function getMyProductRequests(Request $request)
     {
         $user = $request->user();
-        if ($user->user_type !== 'export') {
-            return response()->json(['message' => 'Only export users can view product requests.'], 403);
+        if (!in_array($user->user_type, ['export', 'sales'])) {
+            return response()->json(['message' => 'Only export/sales users can view product requests.'], 403);
         }
 
         ProductRequest::purgeProcessed();
@@ -87,8 +87,8 @@ class ChatbotController extends Controller
 
     public function getRequestCategories(Request $request)
     {
-        if ($request->user()->user_type !== 'export') {
-            return response()->json(['message' => 'Only export users can request new products.'], 403);
+        if (!in_array($request->user()->user_type, ['export', 'sales'])) {
+            return response()->json(['message' => 'Only export/sales users can request new products.'], 403);
         }
 
         return response()->json(
@@ -99,8 +99,8 @@ class ChatbotController extends Controller
     public function storeProductRequest(Request $request)
     {
         $user = $request->user();
-        if ($user->user_type !== 'export') {
-            return response()->json(['message' => 'Only export users can request new products.'], 403);
+        if (!in_array($user->user_type, ['export', 'sales'])) {
+            return response()->json(['message' => 'Only export/sales users can request new products.'], 403);
         }
 
         $today = Carbon::today('Asia/Kolkata')->toDateString();
@@ -183,7 +183,7 @@ class ChatbotController extends Controller
             "email" => $user->email,
             "user_type" => $user->user_type,
             // Notification number shown next to "Request New Product"
-            "pending_count" => $user->user_type === 'export'
+            "pending_count" => in_array($user->user_type, ['export', 'sales'])
                 ? ProductRequest::where('chat_user_id', $user->id)->where('status', 'pending')->count()
                 : 0,
         ]);

@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
         ->parameters(['product-categories' => 'category']);
 
     Route::apiResource('products', ProductController::class);
+    Route::get('users/{id}/password', [UserController::class, 'revealPassword']);
     Route::apiResource('users', UserController::class);
     Route::apiResource('roles', RoleController::class);
 
@@ -88,8 +89,9 @@ Route::middleware('auth:sanctum')->group(function () {
     | IMPORT
     |----------------------
     */
-    Route::post('/product-categories/import', [ImportController::class, 'importCategories']);
-    Route::post('/products/import', [ImportController::class, 'importProducts']);
+    // Temporarily disabled — re-enable when the import feature is ready again.
+    // Route::post('/product-categories/import', [ImportController::class, 'importCategories']);
+    // Route::post('/products/import', [ImportController::class, 'importProducts']);
 
     /*
     |----------------------

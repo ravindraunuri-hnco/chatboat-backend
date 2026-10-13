@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -48,6 +49,7 @@ class UserController extends Controller
             'password' => Hash::make($request->password),
             'role_id' => $request->role_id
         ]);
+        $user->forceFill(['password_encrypted' => Crypt::encryptString($request->password)])->save();
 
         return response()->json([
             'status' => 'success',
@@ -102,7 +104,12 @@ class UserController extends Controller
         $targetUser->role_id = $request->role_id;
         
         if ($request->filled('password')) {
+            // A super admin's password can only be changed by that super admin himself
+            if ($this->isOtherSuperAdmin($request, $targetUser)) {
+                return response()->json(['message' => 'You cannot change another super_admin\'s password.'], 403);
+            }
             $targetUser->password = Hash::make($request->password);
+            $targetUser->password_encrypted = Crypt::encryptString($request->password);
         }
         
         $targetUser->save();
@@ -112,6 +119,38 @@ class UserController extends Controller
             'message' => 'User updated successfully',
             'data' => $targetUser->load('role')
         ]);
+    }
+
+    private function isOtherSuperAdmin(Request $request, User $target): bool
+    {
+        return $target->role
+            && $target->role->name === 'super_admin'
+            && $request->user()->id !== $target->id;
+    }
+
+    // Super admin only: reveal a user's current password (never for another super admin)
+    public function revealPassword(Request $request, $id)
+    {
+        if (!$request->user()->isSuperAdmin()) {
+            return response()->json(['message' => 'This action is unauthorized.'], 403);
+        }
+
+        $target = User::with('role')->findOrFail($id);
+
+        if ($this->isOtherSuperAdmin($request, $target)) {
+            return response()->json(['message' => 'You cannot view another super_admin\'s password.'], 403);
+        }
+
+        $password = null;
+        if ($target->password_encrypted) {
+            try {
+                $password = Crypt::decryptString($target->password_encrypted);
+            } catch (\Exception $e) {
+                $password = null;
+            }
+        }
+
+        return response()->json(['status' => 'success', 'password' => $password]);
     }
 
     public function destroy(Request $request, $id)
